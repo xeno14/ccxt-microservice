@@ -6,10 +6,14 @@ import tornado.options
 import tornado.web
 import unicodedata
 import sys
+import yaml
 
 from tornado.options import define, options
 
+
 define("port", default=5000, help="run on the given port", type=int)
+define("apikeys", default="", help="apiKeys and secrets.", type=str)
+define("nonce_msec", default=False, help="use milliseconds as nonce.", type=bool)
 
 
 class Application(tornado.web.Application):
@@ -26,12 +30,23 @@ class Application(tornado.web.Application):
 
         self.exchanges = {}
 
+        apikeys = {}
+        if options.apikeys != "":
+            with open(options.apikeys, "r") as f:
+                apikeys = yaml.load(f)
+        self.apikeys = apikeys
+
 
 class BaseHandler(tornado.web.RequestHandler):
 
     @property
     def exchanges(self):
         return self.application.exchanges
+
+    def get_apikey(self, exchange):
+        """Get apiKey and secret for an exchange. Returns empty dict if not available.
+        """
+        return self.application.apikeys.get(exchange, {})
 
 
 class HomeHandler(BaseHandler):
@@ -40,11 +55,15 @@ class HomeHandler(BaseHandler):
         self.write(json.dumps({"test":1}))
 
 
+def get_ccxt_module():
+    return sys.modules["ccxt"].__dict__
+
+
 def get_ccxt_class(exchange:str):
-    cls_dict = sys.modules["ccxt"].__dict__
-    if exchange not in cls_dict:
+    module = get_ccxt_module()
+    if exchange not in module:
         raise ValueError("Invalid exchange %s" % exchange)
-    return cls_dict[exchange]
+    return module[exchange]
 
 
 class ExchangeAPIHandler(BaseHandler):
@@ -52,7 +71,13 @@ class ExchangeAPIHandler(BaseHandler):
     def post(self, exchange, method):
         if exchange not in self.exchanges:
             cls = get_ccxt_class(exchange)
-            self.exchanges[exchange] = cls()
+
+            # nonce override
+            if options.nonce_msec:
+                cls.nonce = lambda self: cls.milliseconds()
+
+            apikey= self.get_apikey(exchange)
+            self.exchanges[exchange] = cls(apikey)
 
         ex = self.exchanges[exchange]
 
