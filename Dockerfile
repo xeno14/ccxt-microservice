@@ -2,12 +2,12 @@ FROM python:3.6
 
 EXPOSE 5000
 
-RUN mkdir -p /usr/src/app
-WORKDIR /usr/src/app
+RUN mkdir -p /app
+WORKDIR /app
 
-COPY requirements.txt /usr/src/app/
+COPY requirements.txt /app/
 RUN pip install -r requirements.txt
 
-COPY . /usr/src/app
+COPY . /app
 
 CMD python app.py
