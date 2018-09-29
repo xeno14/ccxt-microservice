@@ -1,6 +1,6 @@
 import asyncio
 import ccxt
-import ccxt.async
+import ccxt.async_support
 import json
 import tornado.httpserver
 import tornado.ioloop
@@ -55,7 +55,7 @@ def get_ccxt_class(exchange:str):
 
 
 def get_async_ccxt_class(exchange:str):
-    module = get_module("ccxt.async")
+    module = get_module("ccxt.async_support")
     if exchange not in module:
         raise ValueError("Invalid exchange %s" % exchange)
     return module[exchange]
@@ -160,7 +160,7 @@ class ParallelFetchOrderBooks(AsyncBaseHandler):
             parallel_run(exchange.fetch_order_book, params)
         )
         response = {
-            symbol:order_book for symbol, order_book in zip(symbols, order_books)
+            symbol: order_book for symbol, order_book in zip(symbols, order_books)
         }
         return self.write(response)
 
